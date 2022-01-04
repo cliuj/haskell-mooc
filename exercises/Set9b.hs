@@ -47,10 +47,10 @@ type Col   = Int
 type Coord = (Row, Col)
 
 nextRow :: Coord -> Coord
-nextRow (i,j) = todo
+nextRow (i,j) = (i + 1, 1)
 
 nextCol :: Coord -> Coord
-nextCol (i,j) = todo
+nextCol (i,j) = (i, j + 1)
 
 --------------------------------------------------------------------------------
 -- Ex 2: Implement the function prettyPrint that, given the size of
@@ -100,7 +100,15 @@ nextCol (i,j) = todo
 -- takes O(n^3) time. Just ignore the previous sentence, if you're not familiar
 -- with the O-notation.)
 prettyPrint :: Size -> [Coord] -> String
-prettyPrint = todo
+prettyPrint size queens = intercalate "" $ 
+    map (\r -> 
+            map (\c -> setSymbol (r, c) queens) [1 ..size] ++ "\n"
+        ) [1..size]
+
+setSymbol :: Coord -> [Coord] -> Char
+setSymbol coord queens
+    | coord `elem` queens = 'Q'
+    | otherwise = '.'
 
 --------------------------------------------------------------------------------
 -- Ex 3: The task in this exercise is to define the relations sameRow, sameCol,
@@ -124,16 +132,16 @@ prettyPrint = todo
 --   sameAntidiag (500,5) (5,500) ==> True
 
 sameRow :: Coord -> Coord -> Bool
-sameRow (i,j) (k,l) = todo
+sameRow (i,j) (k,l) = i == k
 
 sameCol :: Coord -> Coord -> Bool
-sameCol (i,j) (k,l) = todo
+sameCol (i,j) (k,l) = j == l
 
 sameDiag :: Coord -> Coord -> Bool
-sameDiag (i,j) (k,l) = todo
+sameDiag (i,j) (k,l) = abs (i - k) == abs (j - l)
 
 sameAntidiag :: Coord -> Coord -> Bool
-sameAntidiag (i,j) (k,l) = todo
+sameAntidiag = sameDiag
 
 --------------------------------------------------------------------------------
 -- Ex 4: In chess, a queen may capture another piece in the same row, column,
@@ -189,8 +197,9 @@ type Candidate = Coord
 type Stack     = [Coord]
 
 danger :: Candidate -> Stack -> Bool
-danger = todo
-
+danger candidate [] = False
+danger candidate (coord:coords) = foldr (\f -> (||) $ f candidate coord) False [sameRow, sameCol, sameDiag, sameAntidiag] || danger candidate coords
+ 
 --------------------------------------------------------------------------------
 -- Ex 5: In this exercise, the task is to write a modified version of
 -- prettyPrint that marks those empty squares with '#' that are in the
@@ -224,8 +233,16 @@ danger = todo
 -- solution to this version. Any working solution is okay in this exercise.)
 
 prettyPrint2 :: Size -> Stack -> String
-prettyPrint2 = todo
+prettyPrint2 size queens = intercalate "" $ 
+    map (\r -> 
+            map (\c -> setSymbol2 (r, c) queens) [1 .. size] ++ "\n"
+        ) [1 .. size]
 
+setSymbol2 :: Coord -> [Coord] -> Char
+setSymbol2 coord queens
+    | coord `elem` queens = 'Q'
+    | danger coord queens = '#'
+    | otherwise = '.'
 --------------------------------------------------------------------------------
 -- Ex 6: Now that we can check if a piece can be safely placed into a square in
 -- the chessboard, it's time to write the first piece of the actual solution.
@@ -269,8 +286,29 @@ prettyPrint2 = todo
 --     Q#######
 
 fixFirst :: Size -> Stack -> Maybe Stack
-fixFirst n s = todo
+fixFirst _ [] = Nothing
+fixFirst size [queen]
+    | isOutOfBounds size queen = Nothing
+    | otherwise = Just [queen]
+fixFirst size queens
+    | isFixed = Just fixed
+    | otherwise = Nothing
+    where
+        fixed = fix size queens
+        isFixed = foldr ((||) . not . isOutOfBounds size) False fixed
+        -- Keeping these for notes
+        -- isFixed = foldr (\(r, c) -> (||) $ r < size && c < size) False fixed
+        -- isFixed = foldr (\queen -> (||) . not $ isOutOfBounds size queen) False fixed
 
+fix :: Size -> Stack -> Stack
+fix _ [] = []
+fix size (queen:queens)
+    | isOutOfBounds size queen = []
+    | danger queen queens = fix size (nextCol queen : queens)
+    | otherwise =  queen:fix size queens
+
+isOutOfBounds :: Size -> Coord -> Bool
+isOutOfBounds size (r, c) = r > size || c > size
 --------------------------------------------------------------------------------
 -- Ex 7: We need two helper functions for stack management.
 --
@@ -291,10 +329,13 @@ fixFirst n s = todo
 -- Hint: Remember nextRow and nextCol? Use them!
 
 continue :: Stack -> Stack
-continue s = todo
+continue [] = []
+continue (coord:coords) = nextRow coord:coord:coords
 
 backtrack :: Stack -> Stack
-backtrack s = todo
+backtrack [] = []
+backtrack [coord] = []
+backtrack (_:coord:coords) = nextCol coord:coords
 
 --------------------------------------------------------------------------------
 -- Ex 8: Let's take a step. Our algorithm solves the problem (in a
@@ -363,7 +404,9 @@ backtrack s = todo
 --     step 8 [(6,1),(5,4),(4,2),(3,5),(2,3),(1,1)] ==> [(5,5),(4,2),(3,5),(2,3),(1,1)]
 
 step :: Size -> Stack -> Stack
-step = todo
+step size queens = case fixFirst size queens of
+    Nothing -> backtrack queens
+    Just qs -> continue qs
 
 --------------------------------------------------------------------------------
 -- Ex 9: Let's solve our puzzle! The function finish takes a partial
@@ -378,7 +421,9 @@ step = todo
 -- solve the n queens problem.
 
 finish :: Size -> Stack -> Stack
-finish = todo
+finish size queens
+    | length queens > size = tail queens
+    | otherwise = finish size (step size queens)
 
 solve :: Size -> Stack
 solve n = finish n [(1,1)]
